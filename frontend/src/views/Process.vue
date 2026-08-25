@@ -416,6 +416,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
+import { buildOntologyFormData } from '../utils/ontologyRequest'
 import * as d3 from 'd3'
 
 const route = useRoute()
@@ -580,11 +581,7 @@ const handleNewProject = async () => {
     ontologyProgress.value = { message: '正在上传文件并分析文档...' }
     
     // 构建 FormData
-    const formDataObj = new FormData()
-    pending.files.forEach(file => {
-      formDataObj.append('files', file)
-    })
-    formDataObj.append('simulation_requirement', pending.simulationRequirement)
+    const formDataObj = buildOntologyFormData(pending)
     
     // 调用本体生成 API
     const response = await generateOntology(formDataObj)

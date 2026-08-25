@@ -189,6 +189,34 @@
               </div>
             </div>
 
+            <div class="console-section research-section">
+              <div class="console-header">
+                <span class="console-label">{{ $t('home.enableExternalResearch') }}</span>
+              </div>
+              <label class="research-toggle">
+                <input
+                  v-model="formData.researchEnabled"
+                  type="checkbox"
+                  :disabled="loading"
+                />
+                <span>{{ $t('home.enableExternalResearch') }}</span>
+              </label>
+
+              <div v-if="formData.researchEnabled" class="research-query-block">
+                <div class="console-header research-query-header">
+                  <span class="console-label">{{ $t('home.researchQuery') }}</span>
+                </div>
+                <input
+                  v-model="formData.researchQuery"
+                  class="research-query-input"
+                  type="text"
+                  :placeholder="$t('home.researchQueryPlaceholder')"
+                  :disabled="loading"
+                />
+                <div class="research-query-hint">{{ $t('home.researchQueryHint') }}</div>
+              </div>
+            </div>
+
             <!-- 启动按钮 -->
             <div class="console-section btn-section">
               <button 
@@ -221,7 +249,9 @@ const router = useRouter()
 
 // 表单数据
 const formData = ref({
-  simulationRequirement: ''
+  simulationRequirement: '',
+  researchEnabled: false,
+  researchQuery: ''
 })
 
 // 文件列表
@@ -300,7 +330,10 @@ const startSimulation = () => {
   
   // 存储待上传的数据
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, formData.value.simulationRequirement)
+    setPendingUpload(files.value, formData.value.simulationRequirement, {
+      researchEnabled: formData.value.researchEnabled,
+      researchQuery: formData.value.researchQuery
+    })
     
     // 立即跳转到Process页面（使用特殊标识表示新建项目）
     router.push({
@@ -374,6 +407,48 @@ const startSimulation = () => {
 
 .github-link:hover {
   opacity: 0.8;
+}
+
+.research-section {
+  gap: 12px;
+}
+
+.research-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--gray-text);
+}
+
+.research-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.research-query-block {
+  margin-top: 12px;
+}
+
+.research-query-header {
+  margin-bottom: 8px;
+}
+
+.research-query-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  background: #fff;
+  color: var(--black);
+}
+
+.research-query-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--gray-text);
 }
 
 .arrow {
