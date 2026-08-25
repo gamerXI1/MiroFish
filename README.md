@@ -127,6 +127,16 @@ LLM_MODEL_NAME=qwen-plus
 ZEP_API_KEY=your_zep_api_key
 ```
 
+**Optional local OpenAI-compatible backend (verified with `local-reasoning`):**
+
+```env
+LLM_API_KEY=dummy
+LLM_BASE_URL=http://127.0.0.1:30001/v1
+LLM_MODEL_NAME=local-reasoning
+```
+
+> `LLM_API_KEY` must still be non-empty because MiroFish validates it at startup even if the local server ignores auth. Local backends should support `/v1/chat/completions`; several generation flows also rely on JSON mode via `response_format={"type":"json_object"}`.
+
 #### 2. Install Dependencies
 
 ```bash
