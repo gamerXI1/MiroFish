@@ -137,6 +137,39 @@ LLM_MODEL_NAME=local-reasoning
 
 > `LLM_API_KEY` must still be non-empty because MiroFish validates it at startup even if the local server ignores auth. Local backends should support `/v1/chat/completions`; several generation flows also rely on JSON mode via `response_format={"type":"json_object"}`.
 
+**Optional Hermes-backed external research sidecar (verified):**
+
+MiroFish already supports an optional external research contract at `{EXTERNAL_RESEARCH_BASE_URL}/research/query`. This repo now includes a minimal Hermes-backed sidecar that preserves that contract without changing MiroFish core graph/simulation semantics.
+
+```bash
+# start the sidecar from the backend environment
+cd backend
+.venv/bin/python3 run_hermes_research_sidecar.py
+```
+
+```env
+# root .env
+EXTERNAL_RESEARCH_BASE_URL=http://127.0.0.1:8788
+EXTERNAL_RESEARCH_TIMEOUT_SECONDS=60
+```
+
+Optional sidecar-specific overrides:
+
+```env
+HERMES_RESEARCH_HERMES_HOME=/path/to/hermes-home
+HERMES_RESEARCH_COMMAND=hermes
+```
+
+What was verified live:
+- sidecar health endpoint: `GET /health`
+- sidecar query endpoint: `POST /research/query`
+- real Hermes-backed query returned grounded `python.org` sources through the same contract consumed by `ExternalResearchClient`
+
+Current guardrails:
+- only `mode=web_search_and_extract` is supported
+- `browser_fallback=true` is rejected fail-closed
+- trusted-domain filtering is enforced again after Hermes returns sources
+
 #### 2. Install Dependencies
 
 ```bash

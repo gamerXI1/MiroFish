@@ -65,7 +65,7 @@ class _UrllibSession:
 
 class ExternalResearchClient:
     DEFAULT_MODE = "web_search_and_extract"
-    DEFAULT_TIMEOUT_SECONDS = 10.0
+    DEFAULT_TIMEOUT_SECONDS = 60.0
 
     def __init__(
         self,

@@ -119,6 +119,25 @@ def test_external_research_client_returns_unavailable_on_transport_failure():
     )
 
 
+def test_external_research_client_uses_sidecar_safe_default_timeout():
+    session = _FakeSession(
+        response=_FakeResponse(
+            {
+                "success": True,
+                "query": "latest alpha",
+                "retrieved_at": "2026-08-25T00:00:00Z",
+                "provider": "hermes-sidecar",
+                "sources": [],
+            }
+        )
+    )
+    client = ExternalResearchClient(base_url="http://research.local", session=session)
+
+    client.query(query="latest alpha")
+
+    assert session.calls[0]["timeout"] == 60.0
+
+
 def test_external_research_client_fails_closed_when_not_configured():
     client = ExternalResearchClient(base_url=None)
 
