@@ -15,6 +15,8 @@ from . import graph_bp
 from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import BatchSubmission, GraphBuilderService
+from ..services.external_research_client import ExternalResearchClient
+from ..services.research_context_builder import ResearchContextBuilder
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
@@ -125,6 +127,29 @@ def allowed_file(filename: str) -> bool:
         return False
     ext = os.path.splitext(filename)[1].lower().lstrip('.')
     return ext in Config.ALLOWED_EXTENSIONS
+
+
+def _parse_form_bool(value: str | None, *, field_name: str) -> bool:
+    """Parse a multipart/form-data boolean field with fail-closed validation."""
+    if value is None or value == "":
+        return False
+
+    normalized = value.strip().lower()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off"}:
+        return False
+    raise ValueError(f"{field_name} must be a boolean form value")
+
+
+def _merge_additional_context(
+    operator_context: str,
+    rendered_research_context: str,
+) -> str | None:
+    parts = [part.strip() for part in [operator_context, rendered_research_context] if part and part.strip()]
+    if not parts:
+        return None
+    return "\n\n".join(parts)
 
 
 # ============== 项目管理接口 ==============
@@ -274,6 +299,8 @@ def generate_ontology():
         simulation_requirement: 模拟需求描述（必填）
         project_name: 项目名称（可选）
         additional_context: 额外说明（可选）
+        research_enabled: 是否启用外部研究（可选，布尔值）
+        research_query: 外部研究查询词（可选，默认使用 simulation_requirement）
         
     返回：
         {
@@ -298,6 +325,17 @@ def generate_ontology():
         simulation_requirement = request.form.get('simulation_requirement', '')
         project_name = request.form.get('project_name', 'Unnamed Project')
         additional_context = request.form.get('additional_context', '')
+        try:
+            research_enabled = _parse_form_bool(
+                request.form.get('research_enabled'),
+                field_name='research_enabled'
+            )
+        except ValueError as error:
+            return jsonify({
+                "success": False,
+                "error": str(error)
+            }), 400
+        research_query = request.form.get('research_query', '').strip()
         
         logger.debug(f"项目名称: {project_name}")
         logger.debug(f"模拟需求: {simulation_requirement[:100]}...")
@@ -355,14 +393,39 @@ def generate_ontology():
         project.total_text_length = len(all_text)
         ProjectManager.save_extracted_text(project.project_id, all_text)
         logger.info(f"文本提取完成，共 {len(all_text)} 字符")
-        
+
+        research_context_payload = None
+        rendered_research_context = ""
+        if research_enabled:
+            effective_research_query = research_query or simulation_requirement
+            research_result = ExternalResearchClient().query(
+                query=effective_research_query,
+                max_sources=5,
+                trusted_domains=None,
+                browser_fallback=False,
+            )
+            research_context_payload = ResearchContextBuilder.build_for_ontology(
+                research_result
+            )
+            if research_context_payload:
+                ProjectManager.save_research_context(
+                    project.project_id,
+                    research_context_payload,
+                )
+                rendered_research_context = ResearchContextBuilder.render_for_ontology(
+                    research_context_payload
+                )
+
         # 生成本体
         logger.info("调用 LLM 生成本体定义...")
         generator = OntologyGenerator()
         ontology = generator.generate(
             document_texts=document_texts,
             simulation_requirement=simulation_requirement,
-            additional_context=additional_context if additional_context else None
+            additional_context=_merge_additional_context(
+                additional_context,
+                rendered_research_context,
+            )
         )
         
         # 保存本体到项目
