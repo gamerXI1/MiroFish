@@ -138,7 +138,10 @@ def test_external_research_client_uses_sidecar_safe_default_timeout():
     assert session.calls[0]["timeout"] == 60.0
 
 
-def test_external_research_client_fails_closed_when_not_configured():
+def test_external_research_client_fails_closed_when_not_configured(monkeypatch):
+    monkeypatch.delenv("EXTERNAL_RESEARCH_BASE_URL", raising=False)
+    monkeypatch.delenv("EXTERNAL_RESEARCH_API_KEY", raising=False)
+    monkeypatch.delenv("EXTERNAL_RESEARCH_TIMEOUT_SECONDS", raising=False)
     client = ExternalResearchClient(base_url=None)
 
     result = client.query(query="latest alpha")

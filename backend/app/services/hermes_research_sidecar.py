@@ -7,15 +7,24 @@ import os
 import re
 import shlex
 import subprocess
-import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Optional
 from urllib.parse import urlparse
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 
 
 HermesRunner = Callable[..., str]
+
+
+def load_repo_dotenv_for_sidecar(script_path: str | os.PathLike[str]) -> Path | None:
+    env_path = Path(script_path).resolve().parents[1] / ".env"
+    if not env_path.exists():
+        return None
+    load_dotenv(env_path, override=True)
+    return env_path
 
 
 def _utc_now_iso() -> str:
