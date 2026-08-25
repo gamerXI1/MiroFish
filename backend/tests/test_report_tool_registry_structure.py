@@ -72,6 +72,7 @@ def test_build_report_tool_registry_exposes_canonical_tools_and_aliases():
         "panorama_search",
         "quick_search",
         "interview_agents",
+        "external_research",
     }
     assert registry.resolve_name("search_graph") == "quick_search"
     assert registry.resolve_name("get_simulation_context") == "insight_forge"

@@ -12,6 +12,8 @@ import json
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from .external_research_client import ExternalResearchClient
+from .research_context_builder import ResearchContextBuilder
 from ..utils.locale import t
 from ..utils.logger import get_logger
 
@@ -92,6 +94,20 @@ TOOL_DESC_INTERVIEW_AGENTS = """\
 
 【重要】需要OASIS模拟环境正在运行才能使用此功能！"""
 
+TOOL_DESC_EXTERNAL_RESEARCH = """\
+【外部研究 - 现实世界网络参考】
+当模拟图谱内的信息不足以回答问题时，使用这个工具获取外部现实世界参考资料。
+
+【使用场景】
+- 需要补充现实世界的最新公开信息
+- 需要对比模拟结果与外部世界报道
+- 需要引入网络来源作为辅助参考
+
+【重要边界】
+- 返回的是外部现实世界参考，不是模拟事实
+- 不会替代图谱检索，也不会自动回退到Zep搜索
+- 仅在明确需要外部研究时使用"""
+
 
 @dataclass(frozen=True)
 class ToolSpec:
@@ -134,7 +150,8 @@ class ReportToolRegistry:
     def execute(self, name: str, parameters: dict[str, Any], report_context: str = "") -> str:
         spec = self._specs.get(name)
         if spec is None:
-            return f"未知工具: {name}。请使用以下工具之一: insight_forge, panorama_search, quick_search"
+            valid = ", ".join(sorted(self.valid_names()))
+            return f"未知工具: {name}。请使用以下工具之一: {valid}"
         return spec.handler(parameters, report_context)
 
 
@@ -189,6 +206,30 @@ def build_report_tool_registry(agent: Any) -> ReportToolRegistry:
             max_agents=max_agents,
         )
         return result.to_text()
+
+    def external_research_handler(parameters: dict[str, Any], _report_context: str) -> str:
+        query = parameters.get("query", "")
+        if not query:
+            return "外部研究不可用: missing_query"
+
+        max_sources = parameters.get("max_sources", 5)
+        if isinstance(max_sources, str):
+            max_sources = int(max_sources)
+        max_sources = max(1, min(max_sources, 10))
+
+        result = ExternalResearchClient().query(
+            query=query,
+            max_sources=max_sources,
+            trusted_domains=None,
+            browser_fallback=False,
+        )
+        if not result.success:
+            return f"外部研究不可用: {result.error or 'research_unavailable'}"
+
+        context = ResearchContextBuilder.build_for_ontology(result)
+        if not context:
+            return "外部研究未返回可用来源"
+        return ResearchContextBuilder.render_for_report(context)
 
     def search_graph_handler(parameters: dict[str, Any], report_context: str) -> str:
         logger.info(t("report.redirectToQuickSearch"))
@@ -259,6 +300,15 @@ def build_report_tool_registry(agent: Any) -> ReportToolRegistry:
                     "max_agents": "最多采访的Agent数量（可选，默认5，最大10）",
                 },
                 handler=interview_agents_handler,
+            ),
+            ToolSpec(
+                name="external_research",
+                description=TOOL_DESC_EXTERNAL_RESEARCH,
+                parameters={
+                    "query": "外部研究查询词",
+                    "max_sources": "返回来源数量（可选，默认5，最大10）",
+                },
+                handler=external_research_handler,
             ),
             ToolSpec(
                 name="search_graph",
