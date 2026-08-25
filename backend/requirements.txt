@@ -34,3 +34,8 @@ python-dotenv>=1.0.0
 
 # 数据验证
 pydantic>=2.0.0
+
+# 生产/持久化 WSGI 服务
+# 用于 systemd 下的稳定后端与研究侧车服务
+# （替代 Flask 开发服务器）
+gunicorn>=23.0.0
