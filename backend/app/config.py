@@ -2,6 +2,11 @@
 
 import os
 from dotenv import load_dotenv
+from .graph_backend_provider import (
+    GraphBackendConfigError,
+    GraphBackendProvider,
+    get_graph_backend_provider,
+)
 
 # 加载项目根目录的 .env 文件
 # 路径: MiroFish/.env (相对于 backend/app/config.py)
@@ -64,12 +69,21 @@ class Config:
     def validate(cls) -> list[str]:
         """验证必要配置"""
         errors: list[str] = []
-        if not cls.LLM_API_KEY:
+        llm_api_key = (os.environ.get('LLM_API_KEY') or cls.LLM_API_KEY or '').strip()
+        if not llm_api_key:
             errors.append("LLM_API_KEY 未配置")
-        if not cls.ZEP_API_KEY:
-            errors.append("ZEP_API_KEY 未配置")
-        if os.environ.get("ZEP_API_URL"):
-            errors.append("ZEP_API_URL 不受支持；MiroFish 仅连接 Zep Cloud")
+        try:
+            provider = get_graph_backend_provider(validate_env=True)
+        except GraphBackendConfigError as exc:
+            errors.append(str(exc))
+            provider = GraphBackendProvider.ZEP_CLOUD
+
+        zep_api_key = (os.environ.get('ZEP_API_KEY') or cls.ZEP_API_KEY or '').strip()
+        if provider == GraphBackendProvider.ZEP_CLOUD:
+            if not zep_api_key:
+                errors.append("ZEP_API_KEY 未配置")
+            if os.environ.get("ZEP_API_URL"):
+                errors.append("ZEP_API_URL 不受支持；MiroFish 仅连接 Zep Cloud")
         if cls.DEBUG:
             import warnings
             warnings.warn("Flask DEBUG mode is enabled. Do not use in production.", RuntimeWarning)
