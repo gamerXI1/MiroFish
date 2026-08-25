@@ -134,6 +134,11 @@ class ProjectManager:
     def _get_project_text_path(cls, project_id: str) -> str:
         """获取项目提取文本存储路径"""
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
+
+    @classmethod
+    def _get_project_research_context_path(cls, project_id: str) -> str:
+        """获取项目外部研究上下文存储路径"""
+        return os.path.join(cls._get_project_dir(project_id), 'research_context.json')
     
     @classmethod
     def create_project(cls, name: str = "Unnamed Project") -> Project:
@@ -304,6 +309,27 @@ class ProjectManager:
         
         with open(text_path, 'r', encoding='utf-8') as f:
             return f.read()
+
+    @classmethod
+    def save_research_context(cls, project_id: str, data: Dict[str, Any]) -> None:
+        """保存外部研究上下文，不修改项目元数据。"""
+        project_dir = cls._get_project_dir(project_id)
+        os.makedirs(project_dir, exist_ok=True)
+        research_path = cls._get_project_research_context_path(project_id)
+
+        with open(research_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    @classmethod
+    def get_research_context(cls, project_id: str) -> Optional[Dict[str, Any]]:
+        """读取外部研究上下文。"""
+        research_path = cls._get_project_research_context_path(project_id)
+
+        if not os.path.exists(research_path):
+            return None
+
+        with open(research_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
     
     @classmethod
     def get_project_files(cls, project_id: str) -> List[str]:
